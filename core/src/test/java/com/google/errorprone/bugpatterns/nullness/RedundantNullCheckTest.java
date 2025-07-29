@@ -17,7 +17,6 @@
 package com.google.errorprone.bugpatterns.nullness;
 
 import com.google.errorprone.CompilationTestHelper;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -490,6 +489,117 @@ public class RedundantNullCheckTest {
             "  void process() {",
             "    Greeter greeter = new Greeter();",
             "    if (greeter.greet() == null) { /* This is fine */ }",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void positive_objectsNonNull_parameter() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import java.util.Objects;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo(String s) {",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    if (Objects.nonNull(s)) {}",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_objectsNonNull_nullableParameter() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import org.jspecify.annotations.Nullable;",
+            "import java.util.Objects;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo(@Nullable String s) {",
+            "    if (Objects.nonNull(s)) {}",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void positive_objectsNonNull_methodCall() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import java.util.Objects;",
+            "@NullMarked",
+            "class Test {",
+            "  String getString() { return \"foo\"; }",
+            "  void process() {",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    if (Objects.nonNull(getString())) {}",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_objectsNonNull_nullableMethodCall() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import org.jspecify.annotations.Nullable;",
+            "import java.util.Objects;",
+            "@NullMarked",
+            "class Test {",
+            "  @Nullable String getNullableString() { return null; }",
+            "  void process() {",
+            "    if (Objects.nonNull(getNullableString())) {}",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void positive_objectsNonNull_methodReference() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import java.util.Objects;",
+            "import java.util.stream.Stream;",
+            "import org.jspecify.annotations.NullMarked;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo(String s) {",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    Stream.of(s).filter(Objects::nonNull).count();",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_objectsNonNull_methodReference_nullable() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import java.util.Objects;",
+            "import org.jspecify.annotations.NullMarked;",
+            "import org.jspecify.annotations.Nullable;",
+            "@NullMarked",
+            "class Test {",
+            "  @FunctionalInterface",
+            "  interface MyPredicate {",
+            "    boolean test(@Nullable String s);",
+            "  }",
+            "",
+            "  void takesMyPredicate(MyPredicate p) {}",
+            "  void foo() {",
+            "    takesMyPredicate(Objects::nonNull);",
             "  }",
             "}")
         .doTest();
