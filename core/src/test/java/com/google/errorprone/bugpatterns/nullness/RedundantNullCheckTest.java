@@ -298,6 +298,24 @@ public class RedundantNullCheckTest {
   }
 
   @Test
+  public void positive_localVariable_implicitType_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "@NullMarked",
+            "class Test {",
+            "  String getString() { return \"foo\"; }",
+            "  void process() {",
+            "    var s = getString();",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    if (s == null) {}",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
   public void positive_methodCall_inNullMarkedScope_defaultNonNullReturn() {
     compilationHelper
         .addSourceLines(
@@ -478,6 +496,22 @@ public class RedundantNullCheckTest {
   }
 
   @Test
+  public void positive_constructorCall_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo() {",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    if (new Object() == null) {}",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
   public void negative_methodCall_onInstance_explicitlyNullableReturn_inNullMarkedScope() {
     compilationHelper
         .addSourceLines(
@@ -490,6 +524,263 @@ public class RedundantNullCheckTest {
             "  void process() {",
             "    Greeter greeter = new Greeter();",
             "    if (greeter.greet() == null) { /* This is fine */ }",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_genericTypeParameter_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "@NullMarked",
+            "class Test<T> {",
+            "  void foo(T t) {",
+            "    if (t == null) { /* This is fine, T could be nullable */ }",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_inferredLambdaParameter_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import java.util.function.Consumer;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo() {",
+            "    Consumer<String> consumer = s -> {",
+            "      if (s == null) { /* This is fine, inferred type might be nullable */ }",
+            "    };",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void positive_nonInferredLambdaParameter_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import java.util.function.Consumer;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo() {",
+            "    Consumer<String> consumer = (String s) -> {",
+            "      // BUG: Diagnostic contains: RedundantNullCheck",
+            "      if (s == null) {}",
+            "    };",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_nonInferredNullableLambdaParameter_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.Nullable;",
+            "import org.jspecify.annotations.NullMarked;",
+            "import java.util.function.Consumer;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo() {",
+            "    Consumer<String> consumer = (@Nullable String s) -> {",
+            "      if (s == null) { /* This is fine, s is nullable */ }",
+            "    };",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_nonFinalLocalVariable_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "@NullMarked",
+            "class Test {",
+            "  String getString() { return \"foo\"; }",
+            "  void foo(boolean b) {",
+            "    String s = getString();",
+            "    if (b) {",
+            "      s = null; // s is not effectively final",
+            "    }",
+            "    if (s == null) { /* This is fine */ }",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void positive_localVariable_annotatedNullable() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.Nullable;",
+            "class Test {",
+            "  void foo() {",
+            "    @Nullable String s = \"hello\";",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    if (s == null) {}",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void positive_variableInitializedWithLiteral_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo() {",
+            "    String s = \"hello\";",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    if (s == null) {}",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_variableInitializedWithNullLiteral_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo() {",
+            "    String s = null;",
+            "    if (s == null) { /* This is fine */ }",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_methodCall_returnsGenericType_inNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "@NullMarked",
+            "class Test<T> {",
+            "  T get() { return null; }",
+            "  void foo() {",
+            "    if (get() == null) { /* This is fine, T could be nullable */ }",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void positive_objectsRequireNonNull_inNullMarkedScope() {
+    compilationHelper
+        .setArgs("-XepOpt:RedundantNullCheck:CheckRequireNonNull=true")
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import java.util.Objects;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo(String s) {",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    Objects.requireNonNull(s);",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void positive_objectsRequireNonNull_methodCall_inNullMarkedScope() {
+    compilationHelper
+        .setArgs("-XepOpt:RedundantNullCheck:CheckRequireNonNull=true")
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import java.util.Objects;",
+            "@NullMarked",
+            "class Test {",
+            "  String getString() { return \"foo\"; }",
+            "  void foo() {",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    Objects.requireNonNull(getString());",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_objectsRequireNonNull_byDefault() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import java.util.Objects;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo(String s) {",
+            "    Objects.requireNonNull(s);",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_objectsRequireNonNull_explicitlyNullable_inNullMarkedScope() {
+    compilationHelper
+        .setArgs("-XepOpt:RedundantNullCheck:CheckRequireNonNull=true")
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NullMarked;",
+            "import org.jspecify.annotations.Nullable;",
+            "import java.util.Objects;",
+            "@NullMarked",
+            "class Test {",
+            "  void foo(@Nullable String s) {",
+            "    Objects.requireNonNull(s); // This is fine",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void negative_objectsRequireNonNull_outsideNullMarkedScope() {
+    compilationHelper
+        .setArgs("-XepOpt:RedundantNullCheck:CheckRequireNonNull=true")
+        .addSourceLines(
+            "Test.java",
+            "import java.util.Objects;",
+            "class Test {",
+            "  void foo(String s) {",
+            "    Objects.requireNonNull(s); // This is fine",
+            "  }",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void positive_nonNullAnnotated_outsideNullMarkedScope() {
+    compilationHelper
+        .addSourceLines(
+            "Test.java",
+            "import org.jspecify.annotations.NonNull;",
+            "class Test {",
+            "  void foo(@NonNull String s) {",
+            "    // BUG: Diagnostic contains: RedundantNullCheck",
+            "    if (s == null) {}",
             "  }",
             "}")
         .doTest();
